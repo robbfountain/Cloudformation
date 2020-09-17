@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Microsoft Managed Active Directory Deployment"
+  
+Parameters:
+  DirectoryAdminPw:
+    Description: "Default administrator login password"
+    Type: "String"
+    Default: "P@ssD3pt0f1nd"
+  
+  CidrPriSubnetA:
+    Description: "Private Subnet ID in zone A"
+    Type: "AWS::EC2::Subnet::Id"
+
+  CidrPriSubnetB:
+    Description: "Private subnet ID in zone B"
+    Type: "AWS::EC2::Subnet::Id"
+
+  VPC:
+    Description: "VPC ID"
+    Type: "AWS::EC2::VPC::Id"
+
+  DomainName:
+    Description: "The Fully Qualified Domain Name (FQDN)"
+    Type: "String"
+    Default: "poc.com"
+    
+Resources:
+  ADDirectory:
+    Type: "AWS::DirectoryService::MicrosoftAD"
+    Properties:
+      Name: !Ref DomainName #required
+      Password: !Ref DirectoryAdminPw #required
+      VpcSettings: #required
+        SubnetIds: 
+         - !Ref CidrPriSubnetA
+         - !Ref CidrPriSubnetB
+        VpcId: !Ref VPC
+      
+Outputs:
+  ADDirectory:
+    Description: "Directory ID"
+    Value: !Ref ADDirectory

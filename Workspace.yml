@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Workspaces Deployment"
+Parameters:
+  DirectoryId:
+    Description: "ID of the registered directory"
+    Type: String
+    Default: d-xxxxxxxxx
+
+  UserNameA:
+    Description: "Directory user name for user A"
+    Type: String
+
+  BundleId:
+    Description: "The Bundle ID for the workspace"
+    Type: String
+    Default: "wsb-bh8rsxt14"
+  
+Resources:
+  workspace1:
+    Type: "AWS::WorkSpaces::Workspace"
+    Properties:
+      BundleId: !Ref BundleId
+      DirectoryId: !Ref DirectoryId
+      UserName: !Ref UserNameA #required
+  
+Outputs:
+  WorkspaceUserA:
+    Description: "WorkspaceID for UserA"
+    Value: !Ref workspace1
