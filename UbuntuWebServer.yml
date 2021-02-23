@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  "Create a web server using Amazon Linux II AMI with Apache"
+
+Parameters:
+  VPCParameter:
+    Type: "AWS::EC2::VPC::Id"
+
+  SubnetParameter:
+    Description: "Subnet ID for VPC"
+    Type: "AWS::EC2::Subnet::Id"
+
+  KeyPairNameParameter:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: your-keypair-name-here
+
+  InstanceTypeParameter:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "Network Configuration"
+        Parameters: 
+          - VPCParameter
+          - SubnetParameter
+      -
+        Label:
+          default: "EC2 Configuration"
+        Parameters:
+          - InstanceTypeParameter
+          - KeyPairNameParameter
+    ParameterLabels: 
+      VPCParameter: 
+        default: "Which VPC should this be deployed to?"
+      SubnetParameter: 
+        default: "Which Subnet should this be deployed to?"
+      InstanceTypeParameter: 
+        default: "Select an EC2 Instance Type"
+      KeyPairNameParameter: 
+        default: "Select an existing Key Pair for access to the EC2 instance"
+
+Resources:
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref 'VPCParameter'
+      GroupDescription: Enable HTTP, HTTPS and SSH access to server from trusted sources.
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 174.54.87.58/32
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 159.203.161.246/32
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 159.203.163.240/32
+      Tags:
+        - Key: Name
+          Value: !Sub 'Security Group'
+        - Key: CloudFormationStack
+          Value: !Ref 'AWS::StackId'
+
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: true
+      ImageId: 'ami-03d315ad33b9d49c4'
+      InstanceInitiatedShutdownBehavior: stop
+      InstanceType: !Ref InstanceTypeParameter
+      KeyName: !Ref KeyPairNameParameter
+      Monitoring: false
+      NetworkInterfaces:
+          - AssociatePublicIpAddress: true
+            DeleteOnTermination: true
+            Description: ENI for host
+            DeviceIndex: '0'
+            SubnetId: !Ref 'SubnetParameter'
+            GroupSet:
+              - !Ref 'InstanceSecurityGroup'
+
+  CloudwatchAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmActions:
+        - [ !Sub "arn:aws:automate:${AWS::Region}:ec2:recover" ]
+        - [ !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:Default_CloudWatch_Alarms_Topic" ]
+      AlarmDescription: 'Trigger a recovery and SNS Topic when instance status check fails for 15 consecutive minutes.'
+      ComparisonOperator: GreaterThanThreshold #required
+      EvaluationPeriods: '15' #required
+      MetricName: StatusCheckFailed_System
+      Metrics:
+        - MetricDataQuery
+      Namespace: AWS/EC2
+      Period: '60'
+      Threshold: '0'
+      Dimensions:
+      - Name: InstanceId
+        Value: !Ref 'WebServerInstance'
+
+Outputs:
+
+  EC2Instance:
+    Description: 'Webserver Instance ID'
+    Value: !Ref 'WebServerInstance'
